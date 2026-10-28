@@ -1,82 +1,92 @@
-# Courtside
+# NBALive
 
-A terminal UI for following NBA games, box scores, and standings. 
+A terminal UI for following NBA games, box scores, and Chinese play-by-play.
 
-Browse the day's games, drill into a live or finished game for its full box
-score and play-by-play, jump to any date to see past results, and check the
-league standings. Games in progress refresh on their own while you watch.
+Start on today's games, open any game for its full box score and 中文 play-by-play,
+or jump to another date to look at past results. Live games refresh themselves
+while you watch.
 
-## Data 
+## Data
 
-Courtside pulls directly from the NBA's public JSON endpoints via
-[`nba-sdk`](https://github.com/NolanFogarty/nba-sdk):
+All data comes from [直播吧](https://www.zhibo8.cc/)'s public JSON endpoints
+(`bifen4m` / `dc4pc` / `dingshi4pc` on `qiumibao.com`): the daily schedule,
+per-game box scores, and the Chinese play-by-play feed.
 
-- **cdn.nba.com** — the live "today" scoreboard
-- **stats.nba.com** — scoreboard by date, traditional box scores,
-  play-by-play, and league standings
+These are unofficial, undocumented endpoints, so there is **no API key or
+account required**, but they can change or rate-limit without notice. Live games
+auto-refresh every 30 seconds.
 
-These are unofficial, undocumented endpoints, so there's **no API key or
-account required** but they can change or rate-limit without notice. Live
-games auto-refresh roughly every 15 seconds.
+Team names, player names and play-by-play are Chinese; the UI chrome is English.
 
-## Installation
+## Install
 
-### Install from source
+From source:
 
 ```bash
-git clone https://github.com/NolanFogarty/courtside.git
-cd courtside
-go build -o courtside
-sudo mv courtside /usr/local/bin/
+git clone https://github.com/lujiawu/nbalive.git
+cd nbalive
+go build -o nbalive
+sudo mv nbalive /usr/local/bin/
 ```
 
-### Install with go install
+Or:
 
 ```bash
-go install github.com/NolanFogarty/courtside@latest
+go install github.com/lujiawu/nbalive@latest
 ```
 
 ## Usage
 
 ```bash
-courtside
+nbalive
 ```
 
-The app opens on today's games. Everything is keyboard-driven:
+The app opens on today's games (Beijing time). Everything is keyboard-driven.
+Each row shows the score and status, followed by the players 直播吧 lists for
+each team (up to three, away side on the left):
+
+```
+奇才      103 - 110      黄蜂   完赛
+戴维斯 29分10板0助         米勒 39分6板1助
+杨     22分6板10助         里德 18分12板1助
+```
 
 ### Game list
 
 | Key | Action |
 | --- | --- |
 | `↑`/`k`, `↓`/`j` | Move between games |
-| `enter` | Open the selected game's details |
+| `enter` | Open the selected game |
 | `←`/`h`, `→`/`l` | Previous / next day |
 | `d` | Jump to a specific date |
-| `s` | League standings |
-| `/` | Filter games |
+| `/` | Filter games (team or player name) |
+| `r` | Refresh immediately |
 | `q` | Quit |
 
 ### Game details
 
 | Key | Action |
 | --- | --- |
-| `↑`/`k`, `↓`/`j` | Scroll the play-by-play feed |
+| `tab`/`←`/`→` | Switch between the away box, home box, and play-by-play |
+| `↑`/`k`, `↓`/`j` | Scroll the focused panel |
 | `o` | Toggle expanded stats |
+| `f` | Toggle the full-width play-by-play view |
+| `r` | Refresh immediately |
 | `q`/`esc` | Back to the game list |
 
-### Standings
+Live games refresh on their own every 30 seconds; the play-by-play header counts
+down to the next update.
 
-| Key | Action |
-| --- | --- |
-| `q`/`esc` | Back to the game list |
+## Provenance and license
 
-## Screenshots
+This project is a derivative of [courtside](https://github.com/NolanFogarty/courtside)
+by Nolan Fogarty. The original code carries no license grant, so it remains
+**© Nolan Fogarty, all rights reserved**; the full upstream history is kept in
+this repository (`git remote add upstream https://github.com/NolanFogarty/courtside.git`
+and diff against it to see what changed).
 
-### Game List
-![Game list view](images/gamelist.png)
+Changes made in this repository — the 直播吧 backend, the Chinese data model, the
+rewritten list and detail views, and their tests — are released under the MIT
+License. See [LICENSE](LICENSE) for the exact scope.
 
-### Game Details
-![Detailed game view](images/detailed_view.png)
-
-### Standings
-![Standings view](images/standings.png)
+Not affiliated with or endorsed by Nolan Fogarty or the original courtside project.

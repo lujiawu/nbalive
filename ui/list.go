@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -10,19 +11,19 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/NolanFogarty/courtside/backend"
+	"github.com/lujiawu/nbalive/backend"
 )
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 type item struct {
-	title, desc string
-	game        backend.Game
+	game backend.Game
 }
 
-func (i item) Title() string       { return i.title }
-func (i item) Description() string { return i.desc }
-func (i item) FilterValue() string { return i.title }
+func (i item) FilterValue() string {
+	g := i.game
+	return strings.Join(append(append([]string{g.AwayTeam, g.HomeTeam}, g.AwayStars...), g.HomeStars...), " ")
+}
 
 type gamelist struct {
 	list     list.Model
@@ -197,7 +198,7 @@ func parseDate(s string) (time.Time, bool) {
 	}
 	for _, layout := range []string{"1/2", "01/02", "Jan 2"} {
 		if t, err := time.Parse(layout, s); err == nil {
-			return time.Date(nbaToday().Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC), true
+			return time.Date(bjToday().Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC), true
 		}
 	}
 	return time.Time{}, false
@@ -210,27 +211,39 @@ func fetchGames(day time.Time) tea.Cmd {
 	}
 }
 
-// refreshCmd silently re-fetches the current day's games when viewing today,
-// where live scores change. Past/future days are static, so it returns nil.
-func (m gamelist) refreshCmd() tea.Cmd {
-	if m.entering || !sameDay(m.day, nbaToday()) {
+// refreshCmd re-fetches the viewed date. Auto-refresh only applies to today
+// (past days are static); a manual refresh forces it for any date.
+func (m gamelist) refreshCmd(force bool) tea.Cmd {
+	if m.entering || (!force && !sameDay(m.day, bjToday())) {
 		return nil
 	}
 	return fetchGames(m.day)
+}
+
+// startLoad marks a user-initiated load so the title shows "(loading…)" and any
+// failure is surfaced, the same way a date change does.
+func (m gamelist) startLoad() gamelist {
+	m.loading = true
+	m.err = nil
+	m.list.Title = m.title()
+	return m
 }
 
 // applyGames replaces the list's items with the games for the current day.
 func (m *gamelist) applyGames(games []backend.Game) tea.Cmd {
 	items := make([]list.Item, len(games))
 	for i, g := range games {
-		items[i] = formatGame(g)
+		items[i] = item{game: g}
 	}
 	return m.list.SetItems(items)
 }
 
 func (m gamelist) title() string {
 	label := m.day.Format("Mon Jan 2")
-	if sameDay(m.day, nbaToday()) {
+	if m.day.Year() != bjToday().Year() {
+		label = m.day.Format("Mon Jan 2, 2006") // past seasons are reachable
+	}
+	if sameDay(m.day, bjToday()) {
 		label = "Today · " + label
 	}
 	t := "NBA Scores — " + label
@@ -251,21 +264,17 @@ func sameDay(a, b time.Time) bool {
 // are normalized to their calendar date so the comparison ignores time of day
 // and location differences.
 func afterToday(t time.Time) bool {
-	today := nbaToday()
+	today := bjToday()
 	ty, tm, td := t.Date()
 	ny, nm, nd := today.Date()
 	return time.Date(ty, tm, td, 0, 0, 0, 0, time.UTC).
 		After(time.Date(ny, nm, nd, 0, 0, 0, 0, time.UTC))
 }
 
-// nbaToday returns the current date in US Eastern time, which is what the NBA's
-// schedule endpoints key game dates on. Falls back to local time if the zone
-// database is unavailable.
-func nbaToday() time.Time {
-	if loc, err := time.LoadLocation("America/New_York"); err == nil {
-		return time.Now().In(loc)
-	}
-	return time.Now()
+// bjToday returns the current date in Beijing time, which is how 直播吧 keys
+// its daily schedule.
+func bjToday() time.Time {
+	return time.Now().In(backend.Beijing())
 }
 
 func (m gamelist) View() tea.View {
@@ -295,7 +304,7 @@ func (m gamelist) View() tea.View {
 			[2]string{"←/h", "prev day"},
 			[2]string{"→/l", "next day"},
 			[2]string{"d", "date"},
-			[2]string{"s", "standings"},
+			[2]string{"r", "refresh"},
 			[2]string{"q", "quit"},
 		)
 
@@ -316,17 +325,121 @@ func (m gamelist) View() tea.View {
 	return v
 }
 
-func formatGame(g backend.Game) item {
-	scoreboard := fmt.Sprintf("%-13s %3d - %-3d %13s", g.AwayTeam, g.AwayScore, g.HomeScore, g.HomeTeam)
-	pad := (len(scoreboard) - len(g.GameClock)) / 2
-	clock := fmt.Sprintf("%*s", pad+len(g.GameClock), g.GameClock)
-	return item{title: scoreboard, desc: clock, game: g}
+// wTeam is the display width shared by the list rows and the detail scoreboard
+// header. Chinese team names are at most four characters (8 columns).
+const wTeam = 8
+
+// scoreLine renders "AWAY 103 - 110 HOME" with fixed display widths, so the two
+// views line up with each other.
+func scoreLine(away string, awayScore int, home string, homeScore int) string {
+	return pad(truncate(away, wTeam), wTeam, false) +
+		fmt.Sprintf(" %3d - %-3d ", awayScore, homeScore) +
+		pad(truncate(home, wTeam), wTeam, true)
+}
+
+// vsLine is the pre-game scoreboard: "AWAY  vs  HOME" in the same column
+// widths as scoreLine, so rows line up before and after tip-off.
+func vsLine(away, home string) string {
+	return pad(truncate(away, wTeam), wTeam, false) + "    vs     " +
+		pad(truncate(home, wTeam), wTeam, true)
+}
+
+// statusSuffix annotates the scoreboard. The second line already carries
+// per-game content, so status and freshness live on the first line.
+func statusSuffix(g backend.Game) string {
+	if g.NotStarted() {
+		return ""
+	}
+	if g.IsLive() {
+		s := "   ● " + g.GameClock
+		if g.Updated != "" {
+			s += " · 更新 " + g.Updated
+		}
+		return s
+	}
+	return "   完赛"
+}
+
+// gameRowHeight is the lines per game: the scoreboard plus three player rows.
+const gameRowHeight = 4
+
+// wStarCol is the display width of each team's player column.
+const wStarCol = 28
+
+// gameLines is one list row: the scoreboard with status, then the players the
+// list reports for each team, away side on the left and home on the right.
+func gameLines(g backend.Game) [gameRowHeight]string {
+	var lines [gameRowHeight]string
+	if g.NotStarted() {
+		lines[0] = vsLine(g.AwayTeam, g.HomeTeam)
+		lines[1] = g.TipOff + " 开赛"
+		return lines
+	}
+
+	lines[0] = scoreLine(g.AwayTeam, g.AwayScore, g.HomeTeam, g.HomeScore) + statusSuffix(g)
+	for i := 0; i < gameRowHeight-1; i++ {
+		var away, home string
+		if i < len(g.AwayStars) {
+			away = g.AwayStars[i]
+		}
+		if i < len(g.HomeStars) {
+			home = g.HomeStars[i]
+		}
+		if away == "" && home == "" {
+			continue // a team with fewer players just leaves the row blank
+		}
+		lines[i+1] = pad(truncate(away, wStarCol-2), wStarCol, false) + truncate(home, wStarCol)
+	}
+	return lines
+}
+
+// gameDelegate draws the multi-line row. The stock bubbles delegate only has
+// room for a title and a description, so this repeats its selection, dimming,
+// and truncation behaviour with more lines.
+type gameDelegate struct {
+	styles list.DefaultItemStyles
+}
+
+func newGameDelegate() gameDelegate {
+	return gameDelegate{styles: list.NewDefaultItemStyles(true)}
+}
+
+func (d gameDelegate) Height() int                       { return gameRowHeight }
+func (d gameDelegate) Spacing() int                      { return 0 }
+func (gameDelegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
+
+func (d gameDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	it, ok := listItem.(item)
+	if !ok || m.Width() <= 0 {
+		return
+	}
+
+	titleStyle, descStyle := d.styles.NormalTitle, d.styles.NormalDesc
+	switch {
+	case m.FilterState() == list.Filtering && m.FilterValue() == "":
+		titleStyle, descStyle = d.styles.DimmedTitle, d.styles.DimmedDesc
+	case index == m.Index() && m.FilterState() != list.Filtering:
+		titleStyle, descStyle = d.styles.SelectedTitle, d.styles.SelectedDesc
+	}
+
+	// The selected style draws a left border, so leave a column spare.
+	width := m.Width() - d.styles.NormalTitle.GetPaddingLeft() -
+		d.styles.NormalTitle.GetPaddingRight() - 1
+	if width < 4 {
+		width = 4
+	}
+
+	lines := gameLines(it.game)
+	fmt.Fprint(w, titleStyle.Render(truncate(lines[0], width)))
+	for _, line := range lines[1:] {
+		fmt.Fprint(w, "\n", descStyle.Render(truncate(line, width)))
+	}
 }
 
 func newGamesList(games []backend.Game) gamelist {
 	items := make([]list.Item, len(games))
 	for i, g := range games {
-		items[i] = formatGame(g)
+		items[i] = item{game: g}
 	}
 
 	ti := textinput.New()
@@ -334,8 +447,8 @@ func newGamesList(games []backend.Game) gamelist {
 	ti.CharLimit = 16
 
 	m := gamelist{
-		list:  list.New(items, list.NewDefaultDelegate(), 0, 0),
-		day:   nbaToday(),
+		list:  list.New(items, newGameDelegate(), 0, 0),
+		day:   bjToday(),
 		input: ti,
 	}
 
@@ -347,7 +460,7 @@ func newGamesList(games []backend.Game) gamelist {
 		key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "prev day")),
 		key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "next day")),
 		key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "date")),
-		key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "standings")),
+		key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 	}
 	m.list.AdditionalShortHelpKeys = func() []key.Binding { return dayKeys }
 	m.list.AdditionalFullHelpKeys = func() []key.Binding { return dayKeys }

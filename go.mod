@@ -1,4 +1,4 @@
-module github.com/NolanFogarty/courtside
+module github.com/lujiawu/nbalive
 
 go 1.26.0
 
@@ -6,7 +6,6 @@ require (
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.2
 	charm.land/lipgloss/v2 v2.0.3
-	github.com/NolanFogarty/nba-sdk v0.0.0-20260605221507-4db33ba1b774
 )
 
 require (

@@ -1,0 +1,505 @@
+{
+ "code": "0",
+ "list": [
+  {
+   "id": "2139835",
+   "leagueid": "924",
+   "sdate": "2026-10-27",
+   "time": "07:30",
+   "url": "/zhibo/nba/2026/match2139835v.htm",
+   "type": "basketball",
+   "start": "2026-10-27 07:30",
+   "home_team": "热火",
+   "visit_team": "独行侠",
+   "home_id": "6905",
+   "visit_id": "6911",
+   "rightishome": "1",
+   "home_score": "109",
+   "visit_score": "113",
+   "period_cn": "完赛",
+   "state": "3",
+   "from": "dc.live.10.",
+   "code": "710",
+   "update": "10:24:50",
+   "is_prima": "1",
+   "is_jingcai": 0,
+   "score_higher_priority": "0",
+   "period_state": "",
+   "half_score": "分差:-4 总分数:222",
+   "overtime_score": "",
+   "is_poll_end": true,
+   "big_score_1": "",
+   "big_score_2": "",
+   "player_data": {
+    "left": [
+     {
+      "player_id": "82914",
+      "value": "18分6板6助",
+      "player_name": "欧文",
+      "type": 2
+     },
+     {
+      "player_id": "698528",
+      "value": "29分6板11助",
+      "player_name": "弗拉格",
+      "type": 2
+     },
+     {
+      "player_id": "88763",
+      "value": "20分9板2助",
+      "player_name": "华盛顿",
+      "type": 2
+     }
+    ],
+    "right": [
+     {
+      "player_id": "82723",
+      "value": "29分14板11助",
+      "player_name": "阿德托昆博",
+      "type": 2
+     },
+     {
+      "player_id": "82565",
+      "value": "10分12板2助",
+      "player_name": "波蒂斯",
+      "type": 2
+     },
+     {
+      "player_id": "215784",
+      "value": "21分0板2助",
+      "player_name": "米切尔",
+      "type": 2
+     }
+    ]
+   },
+   "has_lineup": false
+  },
+  {
+   "id": "2139837",
+   "leagueid": "924",
+   "sdate": "2026-10-27",
+   "time": "08:00",
+   "url": "/zhibo/nba/2026/match2139837v.htm",
+   "type": "basketball",
+   "start": "2026-10-27 08:00",
+   "home_team": "雄鹿",
+   "visit_team": "步行者",
+   "home_id": "6904",
+   "visit_id": "6899",
+   "rightishome": "1",
+   "home_score": "110",
+   "visit_score": "102",
+   "period_cn": "完赛",
+   "state": "3",
+   "from": "dc.live.150.",
+   "code": "709",
+   "update": "10:37:08",
+   "is_prima": "1",
+   "is_jingcai": 0,
+   "score_higher_priority": "0",
+   "period_state": "",
+   "half_score": "分差:8 总分数:212",
+   "overtime_score": "",
+   "is_poll_end": true,
+   "big_score_1": "",
+   "big_score_2": "",
+   "player_data": {
+    "left": [
+     {
+      "player_id": "163995",
+      "value": "22分6板9助",
+      "player_name": "哈利伯顿",
+      "type": 2
+     },
+     {
+      "player_id": "82478",
+      "value": "20分13板6助",
+      "player_name": "西亚卡姆",
+      "type": 2
+     },
+     {
+      "player_id": "164006",
+      "value": "14分6板2助",
+      "player_name": "托平",
+      "type": 2
+     }
+    ],
+    "right": [
+     {
+      "player_id": "88773",
+      "value": "23分10板7助",
+      "player_name": "希罗",
+      "type": 2
+     },
+     {
+      "player_id": "688357",
+      "value": "16分14板0助",
+      "player_name": "韦尔",
+      "type": 2
+     },
+     {
+      "player_id": "82395",
+      "value": "17分7板3助",
+      "player_name": "库兹马",
+      "type": 2
+     }
+    ]
+   },
+   "has_lineup": false
+  },
+  {
+   "id": "2139838",
+   "leagueid": "924",
+   "sdate": "2026-10-27",
+   "time": "08:00",
+   "url": "/zhibo/nba/2026/match2139838v.htm",
+   "type": "basketball",
+   "start": "2026-10-27 08:00",
+   "home_team": "雷霆",
+   "visit_team": "太阳",
+   "home_id": "6893",
+   "visit_id": "6897",
+   "rightishome": "1",
+   "home_score": "125",
+   "visit_score": "114",
+   "period_cn": "完赛",
+   "state": "3",
+   "from": "live.live.15.",
+   "code": "717",
+   "update": "10:33:28",
+   "is_prima": "1",
+   "is_jingcai": 0,
+   "score_higher_priority": "0",
+   "period_state": "",
+   "half_score": "分差:11 总分数:239",
+   "overtime_score": "",
+   "is_poll_end": true,
+   "big_score_1": "",
+   "big_score_2": "",
+   "player_data": {
+    "left": [
+     {
+      "player_id": "82378",
+      "value": "19分5板5助",
+      "player_name": "狄龙",
+      "type": 2
+     },
+     {
+      "player_id": "86811",
+      "value": "17分8板4助",
+      "player_name": "布里奇斯",
+      "type": 2
+     },
+     {
+      "player_id": "215768",
+      "value": "20分4板4助",
+      "player_name": "格林",
+      "type": 2
+     }
+    ],
+    "right": [
+     {
+      "player_id": "86800",
+      "value": "26分3板3助",
+      "player_name": "亚历山大",
+      "type": 2
+     },
+     {
+      "player_id": "690480",
+      "value": "30分2板5助",
+      "player_name": "米切尔",
+      "type": 2
+     },
+     {
+      "player_id": "82401",
+      "value": "15分13板3助",
+      "player_name": "哈尔滕施泰因",
+      "type": 2
+     }
+    ]
+   },
+   "has_lineup": false
+  },
+  {
+   "id": "2139839",
+   "leagueid": "924",
+   "sdate": "2026-10-27",
+   "time": "08:30",
+   "url": "/zhibo/nba/2026/match2139839v.htm",
+   "type": "basketball",
+   "start": "2026-10-27 08:30",
+   "home_team": "火箭",
+   "visit_team": "老鹰",
+   "home_id": "6908",
+   "visit_id": "6916",
+   "rightishome": "1",
+   "home_score": "120",
+   "visit_score": "110",
+   "period_cn": "完赛",
+   "state": "3",
+   "from": "live.live.47.",
+   "code": "962",
+   "update": "11:02:16",
+   "is_prima": "1",
+   "is_jingcai": 0,
+   "score_higher_priority": "0",
+   "period_state": "",
+   "half_score": "分差:10 总分数:230",
+   "overtime_score": "",
+   "is_poll_end": true,
+   "big_score_1": "",
+   "big_score_2": "",
+   "player_data": {
+    "left": [
+     {
+      "player_id": "215757",
+      "value": "21分9板4助",
+      "player_name": "约翰逊",
+      "type": 2
+     },
+     {
+      "player_id": "82755",
+      "value": "20分1板3助",
+      "player_name": "麦科勒姆",
+      "type": 2
+     },
+     {
+      "player_id": "164023",
+      "value": "11分9板1助",
+      "player_name": "奥孔武",
+      "type": 2
+     }
+    ],
+    "right": [
+     {
+      "player_id": "215767",
+      "value": "29分9板9助6断",
+      "player_name": "申京",
+      "type": 2
+     },
+     {
+      "player_id": "83212",
+      "value": "22分9板3助",
+      "player_name": "杜兰特",
+      "type": 2
+     },
+     {
+      "player_id": "297814",
+      "value": "16分12板5助",
+      "player_name": "小史密斯",
+      "type": 2
+     }
+    ]
+   },
+   "has_lineup": false
+  },
+  {
+   "id": "2139840",
+   "leagueid": "924",
+   "sdate": "2026-10-27",
+   "time": "09:00",
+   "url": "/zhibo/nba/2026/match2139840v.htm",
+   "type": "basketball",
+   "start": "2026-10-27 09:00",
+   "home_team": "爵士",
+   "visit_team": "灰熊",
+   "home_id": "6891",
+   "visit_id": "6890",
+   "rightishome": "1",
+   "home_score": "81",
+   "visit_score": "89",
+   "period_cn": "第4节\n10:31",
+   "state": "2",
+   "from": "dc.live.195.",
+   "code": "560",
+   "update": "11:02:16",
+   "is_prima": "1",
+   "is_jingcai": 0,
+   "score_higher_priority": "0",
+   "period_state": "第4节",
+   "half_score": "分差:-8 总分数:170",
+   "overtime_score": "",
+   "is_poll_end": false,
+   "big_score_1": "",
+   "big_score_2": "",
+   "player_data": {
+    "left": [
+     {
+      "player_id": "778306",
+      "value": "13分8板2助",
+      "player_name": "科沃德",
+      "type": 2
+     },
+     {
+      "player_id": "692585",
+      "value": "13分4板3助",
+      "player_name": "布泽尔",
+      "type": 2
+     },
+     {
+      "player_id": "688497",
+      "value": "8分5板5助",
+      "player_name": "斯潘塞",
+      "type": 2
+     }
+    ],
+    "right": [
+     {
+      "player_id": "782087",
+      "value": "11分3板2助",
+      "player_name": "彼得森",
+      "type": 2
+     },
+     {
+      "player_id": "86793",
+      "value": "膝盖受伤退场",
+      "player_name": "杰克逊",
+      "type": 2
+     },
+     {
+      "player_id": "82416",
+      "value": "手臂受伤退场",
+      "player_name": "马尔卡宁",
+      "type": 2
+     }
+    ]
+   },
+   "has_lineup": false
+  },
+  {
+   "id": "2139845",
+   "leagueid": "924",
+   "sdate": "2026-10-27",
+   "time": "10:00",
+   "url": "/zhibo/nba/2026/match2139845v.htm",
+   "type": "basketball",
+   "start": "2026-10-27 10:00",
+   "home_team": "掘金",
+   "visit_team": "勇士",
+   "home_id": "6910",
+   "visit_id": "6909",
+   "rightishome": "1",
+   "home_score": "52",
+   "visit_score": "55",
+   "period_cn": "第2节\n02:25",
+   "state": "2",
+   "from": "dc.live.7.",
+   "code": "302",
+   "update": "11:02:26",
+   "is_prima": "1",
+   "is_jingcai": 0,
+   "score_higher_priority": "0",
+   "period_state": "第2节",
+   "half_score": "分差:-3 总分数:107",
+   "overtime_score": "",
+   "is_poll_end": false,
+   "big_score_1": "",
+   "big_score_2": "",
+   "player_data": {
+    "left": [
+     {
+      "player_id": "83054",
+      "value": "3分2板3助",
+      "player_name": "库里",
+      "type": 2
+     },
+     {
+      "player_id": "753099",
+      "value": "12分5板2助",
+      "player_name": "伦德博格",
+      "type": 2
+     },
+     {
+      "player_id": "553659",
+      "value": "11分3板2助",
+      "player_name": "波杰姆斯基",
+      "type": 2
+     }
+    ],
+    "right": [
+     {
+      "player_id": "82626",
+      "value": "9分5板6助",
+      "player_name": "约基奇",
+      "type": 2
+     },
+     {
+      "player_id": "83052",
+      "value": "12分5板1助",
+      "player_name": "德罗赞",
+      "type": 2
+     },
+     {
+      "player_id": "82504",
+      "value": "9分3板6助",
+      "player_name": "穆雷",
+      "type": 2
+     }
+    ]
+   },
+   "has_lineup": false
+  },
+  {
+   "id": "2321543",
+   "leagueid": "10000716",
+   "sdate": "2026-10-26",
+   "time": "13:00",
+   "url": "/zhibo/nba/2026/match2321543v.htm",
+   "type": "basketball",
+   "start": "2026-10-26 13:00",
+   "home_team": "檀国大学女篮",
+   "visit_team": "江原大学女篮",
+   "home_id": "10011734",
+   "visit_id": "10030276",
+   "rightishome": "0",
+   "home_score": "",
+   "visit_score": "",
+   "period_cn": "待定",
+   "state": "7",
+   "from": ".dc..",
+   "code": "5",
+   "update": "13:08:36",
+   "is_prima": "0",
+   "is_jingcai": 0,
+   "score_higher_priority": "1",
+   "period_state": "",
+   "is_poll_end": false,
+   "big_score_1": "",
+   "big_score_2": "",
+   "has_lineup": false
+  },
+  {
+   "id": "2321410",
+   "leagueid": "3811",
+   "sdate": "2026-10-26",
+   "time": "14:30",
+   "url": "/zhibo/other/2026/match2321410v.htm",
+   "type": "tennis",
+   "start": "2026-10-26 14:30",
+   "home_team": "施晗",
+   "visit_team": "伊布拉吉莫娃",
+   "home_id": "779379",
+   "visit_id": "1058310",
+   "rightishome": "0",
+   "home_score": "2",
+   "visit_score": "0",
+   "period_cn": "完赛",
+   "state": "3",
+   "from": "dc.dc..",
+   "code": "82",
+   "update": "16:22:28",
+   "is_prima": "0",
+   "is_jingcai": 0,
+   "score_higher_priority": "1",
+   "period_state": "",
+   "current_set": 0,
+   "home_cur": "",
+   "visit_cur": "",
+   "is_poll_end": true,
+   "home_server": "0",
+   "visit_server": "0",
+   "dc_code": 71,
+   "has_lineup": false
+  }
+ ]
+}

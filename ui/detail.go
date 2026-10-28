@@ -5,16 +5,14 @@ import (
 	"image/color"
 	"sort"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/NolanFogarty/courtside/backend"
+	"github.com/lujiawu/nbalive/backend"
 )
 
 // ---- data ----------------------------------------------------------------
-//
-// Dummy data for now. The shapes mirror what the SDK's BoxScoreTraditionalV3
-// and PlayByPlayV3 endpoints provide, so real data can slot in later.
 
 type playerStat struct {
 	name                              string
@@ -27,19 +25,14 @@ type playerStat struct {
 }
 
 // played reports whether the player saw any court time. Minutes are the
-// authoritative signal (a player can log time without recording a stat); the
-// stat-line check is a fallback for sub-minute appearances, since minutes are
-// truncated to whole numbers upstream. Players who didn't play are dimmed.
+// authoritative signal; 直播吧 lists everyone on the roster and gives DNPs
+// "00:00". Players who didn't play are dimmed.
 func (p playerStat) played() bool {
-	if p.min != "" && p.min != "0" {
-		return true
-	}
-	return p.pts != 0 || p.ast != 0 || p.reb != 0 || p.blk != 0 || p.to != 0
+	return p.min != "" && p.min != "0" && p.min != "00:00" && p.min != "0:00"
 }
 
 type teamBox struct {
 	name    string
-	tricode string
 	score   int
 	players []playerStat
 
@@ -54,10 +47,8 @@ type teamBox struct {
 }
 
 type playEvent struct {
-	period int
-	clock  string // "8:44"
-	team   string // tricode; empty for neutral events
-	desc   string
+	when string // period and wall-clock time, "第4节 11:02:34"
+	desc string
 }
 
 type gameDetail struct {
@@ -151,6 +142,7 @@ const (
 
 type detail struct {
 	gameID        string
+	date          string // "YYYY-MM-DD", the detail feed is keyed on it
 	game          gameDetail
 	loading       bool
 	err           error
@@ -158,18 +150,21 @@ type detail struct {
 	tipoff        string     // start time, shown when scheduled
 	live          bool       // game in progress; auto-refresh its data
 	expanded      bool       // show detailed (expanded) stats
+	pbpOnly       bool       // full-width play-by-play, with only the scoreboard above
 	focus         panelFocus // which box the scroll keys drive
 	awayScroll    int        // away box scroll offset (0 = top scorer first)
 	homeScroll    int        // home box scroll offset
 	pbpScroll     int        // play-by-play scroll offset (0 = newest at top)
 	width, height int
+	countdown     time.Duration // until the next auto-refresh (live games only)
+	refreshing    bool          // a refresh is in flight
 }
 
 // newDetail seeds the header from the list selection (team names and scores are
 // known immediately). A game that hasn't started has no box score / play-by-play
 // to fetch, so we show its tip-off time instead of loading.
 func newDetail(g backend.Game, width, height int) detail {
-	d := detail{gameID: g.GameId, live: g.IsLive(), width: width, height: height}
+	d := detail{gameID: g.GameId, date: g.Date, live: g.IsLive(), width: width, height: height}
 	d.game.away = teamBox{name: g.AwayTeam, score: g.AwayScore}
 	d.game.home = teamBox{name: g.HomeTeam, score: g.HomeScore}
 	if g.NotStarted() {
@@ -181,15 +176,17 @@ func newDetail(g backend.Game, width, height int) detail {
 	return d
 }
 
-// refreshCmd re-fetches the box score and play-by-play, but only while the game
-// is live. Existing scroll position and expanded state are preserved by Update.
-func (m detail) refreshCmd() tea.Cmd {
-	if !m.live {
+// refreshCmd re-fetches the box score and play-by-play. Auto-refresh only
+// applies to a live game; a manual refresh forces it, since even a finished
+// game's feed can be corrected. A game that hasn't started has nothing to fetch.
+// Existing scroll position and expanded state are preserved by Update.
+func (m detail) refreshCmd(force bool) tea.Cmd {
+	if m.scheduled || (!force && !m.live) {
 		return nil
 	}
-	id := m.gameID
+	id, date := m.gameID, m.date
 	return func() tea.Msg {
-		d, err := backend.GetGameDetail(id)
+		d, err := backend.GetGameDetail(id, date)
 		return gameDetailMsg{detail: d, err: err}
 	}
 }
@@ -204,9 +201,9 @@ func (m detail) Init() tea.Cmd {
 	if m.scheduled {
 		return nil // nothing to fetch until the game starts
 	}
-	id := m.gameID
+	id, date := m.gameID, m.date
 	return func() tea.Msg {
-		d, err := backend.GetGameDetail(id)
+		d, err := backend.GetGameDetail(id, date)
 		return gameDetailMsg{detail: d, err: err}
 	}
 }
@@ -225,18 +222,32 @@ func (m detail) Update(msg tea.Msg) (detail, tea.Cmd) {
 				m.err = msg.err
 			}
 		} else {
-			m.game = toGameDetail(msg.detail)
+			m = m.replaceGame(msg.detail)
 			m.err = nil
 		}
 	case tea.KeyPressMsg:
 		switch msg.String() {
+		case "f":
+			// Flip between the full detail layout and a feed-only one. There is
+			// nothing to show before the data lands.
+			if !m.scheduled && !m.loading && m.err == nil {
+				m.pbpOnly = !m.pbpOnly
+				m.focus = focusPBP
+				m.clampScrolls()
+			}
 		case "o":
-			m.expanded = !m.expanded
-			m.clampScrolls()
+			if !m.pbpOnly {
+				m.expanded = !m.expanded
+				m.clampScrolls()
+			}
 		case "tab", "right", "l":
-			m.focus = (m.focus + 1) % 3
+			if !m.pbpOnly {
+				m.focus = (m.focus + 1) % 3
+			}
 		case "shift+tab", "left", "h":
-			m.focus = (m.focus + 2) % 3
+			if !m.pbpOnly {
+				m.focus = (m.focus + 2) % 3
+			}
 		case "up", "k":
 			m.scrollFocused(-1)
 		case "down", "j":
@@ -247,8 +258,12 @@ func (m detail) Update(msg tea.Msg) (detail, tea.Cmd) {
 }
 
 // scrollFocused moves the focused box's scroll offset by delta, clamped to that
-// box's range.
+// box's range. The feed-only layout has just the one box, so it owns the keys.
 func (m *detail) scrollFocused(delta int) {
+	if m.pbpOnly {
+		m.pbpScroll = clampInt(m.pbpScroll+delta, 0, m.maxScroll())
+		return
+	}
 	switch m.focus {
 	case focusAway:
 		m.awayScroll = clampInt(m.awayScroll+delta, 0, m.awayMaxScroll())
@@ -267,19 +282,72 @@ func (m *detail) clampScrolls() {
 	m.pbpScroll = clampInt(m.pbpScroll, 0, m.maxScroll())
 }
 
+// replaceGame swaps in freshly fetched data while keeping the play the user is
+// reading in place. The feed is newest-first and replaced wholesale, so the
+// slice shifts under anyone who has scrolled back.
+func (m detail) replaceGame(d backend.GameDetail) detail {
+	anchor := ""
+	if m.pbpScroll > 0 && m.pbpScroll < len(m.game.plays) {
+		anchor = playKey(m.game.plays[m.pbpScroll])
+	}
+
+	m.game = toGameDetail(d)
+
+	if anchor != "" {
+		m.pbpScroll = anchorPlay(m.game.plays, anchor)
+	}
+	m.pbpScroll = clampInt(m.pbpScroll, 0, m.maxScroll())
+	return m
+}
+
+// anchorPlay returns the index of the play matching key, or 0 (newest) when the
+// refresh pushed it out of the feed.
+func anchorPlay(plays []playEvent, key string) int {
+	for i, p := range plays {
+		if playKey(p) == key {
+			return i
+		}
+	}
+	return 0
+}
+
+// playKey identifies a play across refreshes. 直播吧 plays carry no id in the
+// view model, and two events can share a timestamp, so text is included.
+func playKey(p playEvent) string {
+	return p.when + "\x00" + p.desc
+}
+
+// refreshLabel is the play-by-play title suffix: the countdown to the next
+// refresh, or the in-flight marker. The marker outranks the countdown so a
+// manual refresh of a finished game still shows something happening.
+func (m detail) refreshLabel() string {
+	if m.refreshing {
+		return "刷新中…"
+	}
+	if !m.live {
+		return ""
+	}
+	// Round up so the label reads "1s" until the fetch actually fires.
+	secs := int((m.countdown + time.Second - 1) / time.Second)
+	if secs < 0 {
+		secs = 0
+	}
+	return fmt.Sprintf("刷新 %ds", secs)
+}
+
 // toGameDetail maps the backend's GameDetail into the view's render types.
 func toGameDetail(d backend.GameDetail) gameDetail {
 	g := gameDetail{away: toTeamBox(d.Away), home: toTeamBox(d.Home)}
 	g.plays = make([]playEvent, len(d.Plays))
 	for i, p := range d.Plays {
-		g.plays[i] = playEvent{period: p.Period, clock: p.Clock, team: p.Team, desc: p.Desc}
+		g.plays[i] = playEvent{when: p.When, desc: p.Desc}
 	}
 	return g
 }
 
 func toTeamBox(t backend.TeamDetail) teamBox {
 	tb := teamBox{
-		name: t.Name, tricode: t.Tricode, score: t.Score,
+		name: t.Name, score: t.Score,
 		fgPct: t.FGPct, fg3Pct: t.FG3Pct, ftm: t.FTM, fta: t.FTA,
 		reb: t.Reb, ast: t.Ast, to: t.To,
 		fgm: t.FGM, fga: t.FGA, tpm: t.TPM, tpa: t.TPA,
@@ -374,10 +442,30 @@ func teamScrollMax(total, visible int) int {
 	return total - visible
 }
 
-// pbpVisible is how many play-by-play lines show at once: enough to fill the
-// play-by-play box to the full height of the left column.
+// pbpBoxHeight is how tall the play-by-play box is stretched. The feed-only
+// layout claims the whole body; otherwise it fills at least the left column so
+// the box never stops short of the tables beside it.
+func (m detail) pbpBoxHeight() int {
+	if m.height <= 0 {
+		return 0 // before the first resize: let the box grow to its content
+	}
+	h := m.playerColumnBudget()
+	if !m.pbpOnly {
+		if lh := m.leftColumnHeight(); lh > h {
+			h = lh
+		}
+	}
+	return h
+}
+
+// pbpVisible is how many play-by-play lines show at once: the box height minus
+// its border (2) and the title/divider (2).
 func (m detail) pbpVisible() int {
-	v := m.leftColumnHeight() - 4 // box border (2) + title & divider (2)
+	h := m.pbpBoxHeight()
+	if h == 0 {
+		h = 8 // pre-layout placeholder so the feed renders a few lines
+	}
+	v := h - 4
 	if v < 4 {
 		v = 4
 	}
@@ -415,19 +503,34 @@ func (m detail) View() tea.View {
 	}
 
 	// Only the loaded box score has scrollable / expandable content.
-	hint := renderHints([2]string{"q", "back"})
+	hint := renderHints(
+		[2]string{"r", "refresh"},
+		[2]string{"q", "back"},
+	)
 	if !m.scheduled && !m.loading && m.err == nil {
-		statsDesc := "more stats"
-		if m.expanded {
-			statsDesc = "less stats"
+		if m.pbpOnly {
+			hint = renderHints(
+				[2]string{"f", "full view"},
+				[2]string{"↑/k", "up"},
+				[2]string{"↓/j", "down"},
+				[2]string{"r", "refresh"},
+				[2]string{"q", "back"},
+			)
+		} else {
+			statsDesc := "more stats"
+			if m.expanded {
+				statsDesc = "less stats"
+			}
+			hint = renderHints(
+				[2]string{"tab/←→", "switch box"},
+				[2]string{"↑/k", "up"},
+				[2]string{"↓/j", "down"},
+				[2]string{"o", statsDesc},
+				[2]string{"f", "pbp only"},
+				[2]string{"r", "refresh"},
+				[2]string{"q", "back"},
+			)
 		}
-		hint = renderHints(
-			[2]string{"tab/←→", "switch box"},
-			[2]string{"↑/k", "up"},
-			[2]string{"↓/j", "down"},
-			[2]string{"o", statsDesc},
-			[2]string{"q", "back"},
-		)
 	}
 
 	// The hint must always stay visible. On a terminal too short to hold the
@@ -457,16 +560,19 @@ func (m detail) View() tea.View {
 // layout as the list view.
 func (m detail) renderHeader(width int) string {
 	g := m.game
-	line := fmt.Sprintf("%-13s %3d - %-3d %13s",
-		g.away.name, g.away.score, g.home.score, g.home.name)
-	bar := headerBarSty.Render(line)
+	bar := headerBarSty.Render(scoreLine(g.away.name, g.away.score, g.home.name, g.home.score))
 	return lipgloss.PlaceHorizontal(width, lipgloss.Center, bar)
 }
 
 // renderMain lays out the two-column body: the player tables (with the team
 // stats bar between them) stacked on the left, and the play-by-play feed
-// filling the right, splitting the width down the middle.
+// filling the right, splitting the width down the middle. The feed-only layout
+// drops the tables and gives the whole body to the play-by-play.
 func (m detail) renderMain(width int) string {
+	if m.pbpOnly {
+		return m.renderInfoColumn(width, m.pbpBoxHeight(), true)
+	}
+
 	const gap = 2
 	colW := (width - gap) / 2
 
@@ -484,7 +590,7 @@ func (m detail) renderMain(width int) string {
 	if rightW < 24 {
 		rightW = 24
 	}
-	right := m.renderInfoColumn(rightW, lipgloss.Height(left), m.focus == focusPBP)
+	right := m.renderInfoColumn(rightW, m.pbpBoxHeight(), m.focus == focusPBP)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, left, "  ", right)
 }
@@ -511,7 +617,11 @@ func (m detail) renderInfoColumn(w, height int, focused bool) string {
 	if maxW < 24 {
 		maxW = 24
 	}
-	pbp := m.renderPBPColumn(m.pbpWidth(maxW))
+	contentW := m.pbpWidth(maxW)
+	if m.pbpOnly {
+		contentW = maxW // the feed-only layout spans the whole width
+	}
+	pbp := m.renderPBPColumn(contentW)
 
 	// Style.Height sets the box's total (border-inclusive) height, so target the
 	// left column's height directly. Grow if the content would be taller.
@@ -536,7 +646,7 @@ func (m detail) pbpWidth(max int) int {
 			maxDesc = dw
 		}
 	}
-	w := wWhen + 2 + wTag + 2 + maxDesc
+	w := wWhen + 2 + maxDesc
 	if len(m.game.plays) == 0 {
 		// Keep room for the "unavailable" note so the divider stays aligned.
 		if nw := lipgloss.Width(pbpUnavailable); w < nw {
@@ -564,7 +674,7 @@ func ma(made, att int) string { return fmt.Sprintf("%d-%d", made, att) }
 func (m detail) playerCols() []statCol {
 	if m.expanded {
 		return []statCol{
-			{"MIN", 4, func(p playerStat) string { return p.min }},
+			{"MIN", 5, func(p playerStat) string { return p.min }},
 			{"PTS", 4, func(p playerStat) string { return num(p.pts) }},
 			{"FG", 6, func(p playerStat) string { return ma(p.fgm, p.fga) }},
 			{"3P", 5, func(p playerStat) string { return ma(p.tpm, p.tpa) }},
@@ -735,17 +845,17 @@ func (m detail) renderTeamBar() string {
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		colHeaderSty.Render(hdr),
-		m.barTeamRow(rows, m.game.away.tricode, awayColor, true, teamW),
-		m.barTeamRow(rows, m.game.home.tricode, homeColor, false, teamW),
+		m.barTeamRow(rows, m.game.away.name, awayColor, true, teamW),
+		m.barTeamRow(rows, m.game.home.name, homeColor, false, teamW),
 	)
 	return panelSty.Render(content)
 }
 
 // barTeamRow renders one team's row of the bar, highlighting the cells where
 // this team leads.
-func (m detail) barTeamRow(rows []statRow, tricode string, teamColor color.Color, isAway bool, teamW int) string {
+func (m detail) barTeamRow(rows []statRow, name string, teamColor color.Color, isAway bool, teamW int) string {
 	row := lipgloss.NewStyle().Bold(true).Foreground(teamColor).
-		Render(pad(tricode, teamW, false))
+		Render(pad(truncate(name, teamW), teamW, false))
 	for _, r := range rows {
 		val, leads := r.home, false
 		awayLeads, homeLeads := r.leader()
@@ -776,7 +886,10 @@ func (m detail) renderPBPColumn(w int) string {
 		end = len(plays)
 	}
 
-	title := colHeaderSty.Render("PLAY-BY-PLAY")
+	title := colHeaderSty.Render(truncate("PLAY-BY-PLAY", w))
+	if label := m.refreshLabel(); label != "" {
+		title = colHeaderSty.Render(truncate("PLAY-BY-PLAY · "+label, w))
+	}
 	if start > 0 {
 		title += hintSty.Render(fmt.Sprintf("   ↑ %d more", start))
 	}
@@ -786,7 +899,7 @@ func (m detail) renderPBPColumn(w int) string {
 		lines = append(lines, mutedSty.Render(pbpUnavailable))
 	}
 	for _, p := range plays[start:end] {
-		lines = append(lines, renderPlay(p, m.game.home.tricode, w))
+		lines = append(lines, renderPlay(p, w))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
@@ -796,42 +909,16 @@ func (m detail) renderPBPColumn(w int) string {
 // endpoint failed, or the game just tipped off).
 const pbpUnavailable = "Play-by-play unavailable"
 
-// play-by-play line layout: "Q2 08:44" (8) + gap + "[NYK]" (5) + gap + desc
-const (
-	wWhen = 8
-	wTag  = 5
-)
+// play-by-play line layout: "第4节 11:02:34" (17) + gap + desc
+const wWhen = 17
 
-func renderPlay(p playEvent, homeTricode string, width int) string {
-	when := mutedSty.Render(pad(fmt.Sprintf("Q%d %s", p.period, mmss(p.clock)), wWhen, false))
-
-	descW := width - wWhen - 2 - wTag - 2
+func renderPlay(p playEvent, width int) string {
+	when := mutedSty.Render(pad(truncate(p.when, wWhen), wWhen, false))
+	descW := width - wWhen - 2
 	if descW < 4 {
 		descW = 4
 	}
-
-	if p.team == "" {
-		// Neutral event (timeout, jump ball, end of period) — fully muted.
-		tag := dimRowSty.Render(pad("---", wTag, false))
-		return when + "  " + tag + "  " + dimRowSty.Italic(true).Render(truncate(p.desc, descW))
-	}
-
-	tagColor := awayColor
-	if p.team == homeTricode {
-		tagColor = homeColor
-	}
-	tag := lipgloss.NewStyle().Bold(true).Foreground(tagColor).
-		Render(pad("["+p.team+"]", wTag, false))
-	return when + "  " + tag + "  " + truncate(p.desc, descW)
-}
-
-// mmss normalizes a "M:SS" clock to zero-padded "MM:SS".
-func mmss(c string) string {
-	var m, s int
-	if _, err := fmt.Sscanf(c, "%d:%d", &m, &s); err != nil {
-		return c
-	}
-	return fmt.Sprintf("%02d:%02d", m, s)
+	return when + "  " + truncate(p.desc, descW)
 }
 
 // ---- helpers -------------------------------------------------------------
@@ -849,13 +936,24 @@ func pad(s string, w int, right bool) string {
 }
 
 func truncate(s string, w int) string {
-	if len(s) <= w {
+	if lipgloss.Width(s) <= w {
 		return s
 	}
-	if w <= 1 {
-		return s[:w]
+	tail := "…"
+	if w <= lipgloss.Width(tail) {
+		return tail
 	}
-	return s[:w-1] + "…"
+	var b strings.Builder
+	used := 0
+	for _, r := range s {
+		rw := lipgloss.Width(string(r))
+		if used+rw > w-lipgloss.Width(tail) {
+			break
+		}
+		b.WriteRune(r)
+		used += rw
+	}
+	return b.String() + tail
 }
 
 func signed(n int) string {
